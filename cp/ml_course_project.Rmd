@@ -7,9 +7,9 @@ output: html_document
 
 Using the dataset comes from "wearables", such as FitBit and Jawbone Up, six participants measured themselves doing a barbel bicep curl.  They were asked to perform the lifts correctly and incorrectly five differnet ways.  Using the training data, I'm to create a model which will then predict on a testing set of 20 test cases to see how accurate my model was.  
 
-## 1. Download the data
+## 1. Load the data and packages
 ```{r}
-setwd("/Users/a149174/JHDataScience/machine_learning/cp")
+library(caret); library(ggplot2)
 training <- read.csv("training.csv", header=T, na.strings=c("NA",""))
 testing <- read.csv("testing.csv", header=T, na.strings=c("NA",""))
 # get dimesions before cleaning
@@ -31,21 +31,25 @@ testing <- testing[,colSums(is.na(testing)) == 0]
 # remove first seven columns not valid for machine learning (x, username, timestamps, new_window, and num_window )
 training   <-training[,-c(1:7)]
 testing <-testing[,-c(1:7)]
+
+# check for covairiates with minimul variability
+nsv <- nearZeroVar(training, saveMetrics=TRUE)
+nsv
+
+# there are no additional variables to remove
 ```
 
 ## 4. Split the data to create a training and test set
 ```{r}
-library(caret);
 set.seed(1000)
 inTrain <- createDataPartition(y=training$classe, p=0.75, list=F)
 my_training <- training[inTrain,]
 my_testing <- training[-inTrain,]
 ```
 
-## 5. Create the using model Random Forest
+## 5a. Create the using model Random Forest
 ```{r}
 set.seed(1000)
-# use random forest with resampling with cross-validation 4-fold
 modelFit_rf <- train(classe~., data=my_training, method="rf", trControl=trainControl(method="cv", number = 4))
 modelFit_rf
 # final model
@@ -56,10 +60,9 @@ predictions_rf <- predict(modelFit_rf, newdata=my_testing)
 confusionMatrix(predictions_rf, my_testing$classe)
 ```
 
-## 6. Create the using K-Nearest Neighbor
+## 5b. Create the using K-Nearest Neighbor
 ```{r}
 set.seed(1000)
-# use k-nearest neighbor with resampling with cross-validation 4-fold
 modelFit_knn <- train(classe~., data=my_training, method="knn", metric = "Accuracy", trControl=trainControl(method="cv", number = 4))
 modelFit_knn
 # final model
@@ -70,14 +73,23 @@ predictions_knn <- predict(modelFit_knn, newdata=my_testing)
 confusionMatrix(predictions_knn, my_testing$classe)
 ```
 
-## 7. Out of sample error
-The model with highest accuracy was random forest.  I wanted to measure out of sample error on my testing set (which is 25% of the inital training set).  Accurancy of random forest was 99.27%, so the out of sample error is 1 - 0.9927 or 0.0073.  Based on this low out of sample error, we should have very few to no misclassified on the test samples. 
+## 6. Out of sample error
+The model with highest accuracy was random forest (99.25 for rf vs 91.81 for knn).  I wanted to measure amount of sample error on my testing set (which is 25% of the inital training set).  Accurancy of random forest was 99.25%, so the out of sample error is 1 - 0.9925 or 0.0075.  Based on this low out of sample error, we should have very few to no misclassified on the test samples. 
 
-## 8. Predict the Samples
+## 7. Predict the Samples
 Using random forest
 ```{r}
-# test on original testing set
-predictions_final <- predict(modelFit, newdata=testing)
-predictions_final
+# rf classify on original testing set
+predictions_final_rf <- predict(modelFit_rf, newdata=testing)
+predictions_final_rf
+
+# knn classify on original testing set
+predictions_final_knn <- predict(modelFit_knn, newdata=testing)
+predictions_final_knn
+
+# compare results of rf and knn classification
+qplot(predictions_final_rf, predictions_final_knn, data=testing)
+
+# as you can see from the plot, each model classified the testing set the same
 ```
 
